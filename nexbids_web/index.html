@@ -521,52 +521,9 @@
 
         <!-- 广告主分析页面 -->
         <div id="advertisers-section" class="section-content">
-            <!-- 广告主汇总卡片 -->
+            <!-- 广告主汇总卡片（按每个广告主拆分） -->
             <div class="row mb-4" id="advertiser-summary-cards">
-                <div class="col-lg-3 col-md-6 mb-4">
-                    <div class="stat-card">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div>
-                                <div class="stat-value" id="adv-total-spend">$0</div>
-                                <div class="stat-label">总花费 (Spend)</div>
-                            </div>
-                            <i class="bi bi-currency-dollar" style="font-size: 2rem; opacity: 0.7;"></i>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-lg-3 col-md-6 mb-4">
-                    <div class="stat-card" style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div>
-                                <div class="stat-value" id="adv-avg-ctr">0%</div>
-                                <div class="stat-label">点击率 (CTR)</div>
-                            </div>
-                            <i class="bi bi-cursor" style="font-size: 2rem; opacity: 0.7;"></i>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-lg-3 col-md-6 mb-4">
-                    <div class="stat-card" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div>
-                                <div class="stat-value" id="adv-total-amount">$0</div>
-                                <div class="stat-label">Amount</div>
-                            </div>
-                            <i class="bi bi-cash-stack" style="font-size: 2rem; opacity: 0.7;"></i>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-lg-3 col-md-6 mb-4">
-                    <div class="stat-card" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div>
-                                <div class="stat-value" id="adv-avg-roi">0</div>
-                                <div class="stat-label">投资回报率 (ROI)</div>
-                            </div>
-                            <i class="bi bi-graph-up-arrow" style="font-size: 2rem; opacity: 0.7;"></i>
-                        </div>
-                    </div>
-                </div>
+                <!-- 动态渲染每个广告主的卡片 -->
             </div>
             <div class="card mb-4">
                 <div class="card-header">广告主每日花费 / Amount / ROI</div>
@@ -1306,15 +1263,56 @@
         // 加载广告主数据
         async function loadAdvertisersData() {
             try {
-                // 加载汇总卡片
+                // 加载并按广告主拆分汇总卡片
                 const summaryResp = await fetch(`${API_BASE}/api/advertisers/summary`);
                 const summaryResult = await summaryResp.json();
-                if (summaryResult.advertisers && summaryResult.advertisers.length > 0) {
-                    const adv = summaryResult.advertisers[0]; // 取第一个广告主，或可自行扩展为全部汇总
-                    document.getElementById('adv-total-spend').textContent = `$${(adv.spend || 0).toFixed(4)}`;
-                    document.getElementById('adv-avg-ctr').textContent = `${((adv.ctr || 0) * 100).toFixed(2)}%`;
-                    document.getElementById('adv-total-amount').textContent = `$${(adv.amount || 0).toFixed(2)}`;
-                    document.getElementById('adv-avg-roi').textContent = `${(adv.roi || 0).toFixed(2)}`;
+                const cardsContainer = document.getElementById('advertiser-summary-cards');
+                if (cardsContainer && summaryResult.advertisers) {
+                    cardsContainer.innerHTML = '';
+                    summaryResult.advertisers.forEach((adv, idx) => {
+                        const spend = adv.spend || 0;
+                        const ctr = (adv.ctr || 0) * 100;
+                        const amount = adv.amount || 0;
+                        const roi = adv.roi || 0;
+                        const gradients = [
+                            'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                            'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+                            'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                            'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                            'linear-gradient(135deg, #ec4899 0%, #db2777 100%)',
+                            'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)'
+                        ];
+                        const bg = gradients[idx % gradients.length];
+                        const cardHtml = `
+                            <div class="col-lg-3 col-md-6 mb-4">
+                                <div class="stat-card" style="background: ${bg};">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <div class="stat-label" style="font-size: 0.85rem; opacity: 0.9;">${adv.advertiser_name || adv.advertiser_id}</div>
+                                        <i class="bi bi-building" style="font-size: 1.2rem; opacity: 0.7;"></i>
+                                    </div>
+                                    <div class="row text-center">
+                                        <div class="col-6 mb-2">
+                                            <div class="stat-value" style="font-size: 1.3rem;">$${spend.toFixed(4)}</div>
+                                            <div class="stat-label" style="font-size: 0.7rem;">花费</div>
+                                        </div>
+                                        <div class="col-6 mb-2">
+                                            <div class="stat-value" style="font-size: 1.3rem;">${ctr.toFixed(2)}%</div>
+                                            <div class="stat-label" style="font-size: 0.7rem;">CTR</div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="stat-value" style="font-size: 1.3rem;">$${amount.toFixed(2)}</div>
+                                            <div class="stat-label" style="font-size: 0.7rem;">Amount</div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="stat-value" style="font-size: 1.3rem;">${roi.toFixed(2)}</div>
+                                            <div class="stat-label" style="font-size: 0.7rem;">ROI</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        cardsContainer.insertAdjacentHTML('beforeend', cardHtml);
+                    });
                 }
 
                 // 加载每日明细表格
