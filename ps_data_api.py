@@ -549,38 +549,32 @@ async def get_daily_summary(
         where_clause = "WHERE " + " AND ".join(conditions)
 
         query = f'''
-            WITH latest_hours AS (
-                SELECT DATE(hour_start) as d, MAX(hour_start) as max_hour
-                FROM hourly_data
-                {where_clause}
-                GROUP BY DATE(hour_start)
-            )
             SELECT
-                DATE(h.hour_start) as date,
-                h.advertiser_name,
-                SUM(h.spend) as daily_spend,
-                SUM(h.impressions) as daily_impressions,
-                SUM(h.clicks) as daily_clicks,
-                SUM(h.registers) as daily_registers,
-                SUM(h.activates) as daily_activates,
-                SUM(h.installs) as daily_installs,
+                DATE(hour_start) as date,
+                advertiser_name,
+                SUM(spend) as daily_spend,
+                SUM(impressions) as daily_impressions,
+                SUM(clicks) as daily_clicks,
+                SUM(registers) as daily_registers,
+                SUM(activates) as daily_activates,
+                SUM(installs) as daily_installs,
                 CASE
-                    WHEN SUM(h.impressions) > 0 THEN ROUND(SUM(h.clicks) * 100.0 / SUM(h.impressions), 2)
+                    WHEN SUM(impressions) > 0 THEN ROUND(SUM(clicks) * 100.0 / SUM(impressions), 2)
                     ELSE 0
                 END as daily_ctr,
                 CASE
-                    WHEN SUM(h.registers) > 0 THEN ROUND(SUM(h.spend) / SUM(h.registers), 4)
+                    WHEN SUM(registers) > 0 THEN ROUND(SUM(spend) / SUM(registers), 4)
                     ELSE 0
                 END as daily_register_cpa,
-                SUM(h.amount) as daily_amount,
+                SUM(amount) as daily_amount,
                 CASE
-                    WHEN SUM(h.spend) > 0 THEN ROUND(SUM(h.amount) * 100.0 / SUM(h.spend), 2)
+                    WHEN SUM(spend) > 0 THEN ROUND(SUM(amount) / SUM(spend), 2)
                     ELSE 0
                 END as daily_roi
-            FROM hourly_data h
-            INNER JOIN latest_hours lh ON DATE(h.hour_start) = lh.d AND h.hour_start = lh.max_hour
-            GROUP BY DATE(h.hour_start), h.advertiser_id
-            ORDER BY date DESC, h.advertiser_name
+            FROM hourly_data
+            {where_clause}
+            GROUP BY DATE(hour_start), advertiser_id
+            ORDER BY date DESC, advertiser_name
         '''
 
         df = pd.read_sql_query(query, conn, params=params)
@@ -709,24 +703,18 @@ async def get_weekly_report_detail(week_start: str):
 def _get_week_data(conn, week_start: datetime, week_end: datetime) -> List[Dict]:
     """获取指定周的数据（内部辅助函数）"""
     query = '''
-        WITH latest_hours AS (
-            SELECT DATE(hour_start) as d, MAX(hour_start) as max_hour
-            FROM hourly_data
-            WHERE hour_start >= ? AND hour_start < ?
-            GROUP BY DATE(hour_start)
-        )
         SELECT
-            DATE(h.hour_start) as date,
-            SUM(h.spend) as daily_spend,
-            SUM(h.impressions) as daily_impressions,
-            SUM(h.clicks) as daily_clicks,
-            SUM(h.registers) as daily_registers,
-            SUM(h.activates) as daily_activates,
-            SUM(h.installs) as daily_installs,
-            SUM(h.amount) as daily_amount
-        FROM hourly_data h
-        INNER JOIN latest_hours lh ON DATE(h.hour_start) = lh.d AND h.hour_start = lh.max_hour
-        GROUP BY DATE(h.hour_start)
+            DATE(hour_start) as date,
+            SUM(spend) as daily_spend,
+            SUM(impressions) as daily_impressions,
+            SUM(clicks) as daily_clicks,
+            SUM(registers) as daily_registers,
+            SUM(activates) as daily_activates,
+            SUM(installs) as daily_installs,
+            SUM(amount) as daily_amount
+        FROM hourly_data
+        WHERE hour_start >= ? AND hour_start < ?
+        GROUP BY DATE(hour_start)
         ORDER BY date
     '''
     df = pd.read_sql_query(query, conn, params=(week_start, week_end))
@@ -870,17 +858,11 @@ async def get_historical_data(
             }
             group_expr, order_expr = group_expr_map[group_by]
             query = f'''
-                WITH latest_hours AS (
-                    SELECT DATE(hour_start) as d, MAX(hour_start) as max_hour
-                    FROM hourly_data
-                    WHERE hour_start >= ? AND hour_start <= ?
-                    GROUP BY DATE(hour_start)
-                )
                 SELECT
                     {group_expr} as time_group,
-                    SUM(h.{metric}) as total_value
-                FROM hourly_data h
-                INNER JOIN latest_hours lh ON DATE(h.hour_start) = lh.d AND h.hour_start = lh.max_hour
+                    SUM({metric}) as total_value
+                FROM hourly_data
+                WHERE hour_start >= ? AND hour_start <= ?
                 GROUP BY {group_expr}
                 ORDER BY {order_expr}
             '''
@@ -1012,9 +994,13 @@ async def download_report(
         if report_type == "hourly":
             query = '''
                 SELECT
+                    advertiser_id,
                     advertiser_name,
+                    campaign_id,
                     campaign_name,
+                    adgroup_id,
                     adgroup_name,
+                    creative_id,
                     creative_name,
                     goal,
                     spend,
@@ -1043,7 +1029,14 @@ async def download_report(
             query = '''
                 SELECT
                     DATE(hour_start) as date,
+                    advertiser_id,
                     advertiser_name,
+                    campaign_id,
+                    campaign_name,
+                    adgroup_id,
+                    adgroup_name,
+                    creative_id,
+                    creative_name,
                     SUM(spend) as total_spend,
                     SUM(impressions) as total_impressions,
                     SUM(clicks) as total_clicks,
@@ -1052,14 +1045,21 @@ async def download_report(
                     SUM(installs) as total_installs,
                     SUM(amount) as total_amount
                 FROM hourly_data
-                GROUP BY DATE(hour_start), advertiser_id
+                GROUP BY DATE(hour_start), creative_id
                 ORDER BY date DESC, advertiser_name
             '''
         else:  # weekly
             query = '''
                 SELECT
                     STRFTIME('%Y-W%W', hour_start) as week,
+                    advertiser_id,
                     advertiser_name,
+                    campaign_id,
+                    campaign_name,
+                    adgroup_id,
+                    adgroup_name,
+                    creative_id,
+                    creative_name,
                     SUM(spend) as total_spend,
                     SUM(registers) as total_registers,
                     SUM(activates) as total_activates,
@@ -1067,7 +1067,7 @@ async def download_report(
                     SUM(amount) as total_amount,
                     AVG(roi) as avg_roi
                 FROM hourly_data
-                GROUP BY STRFTIME('%Y-W%W', hour_start), advertiser_id
+                GROUP BY STRFTIME('%Y-W%W', hour_start), creative_id
                 ORDER BY week DESC, advertiser_name
             '''
 

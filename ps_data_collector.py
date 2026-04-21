@@ -59,11 +59,82 @@ class PSDataCollector:
         logger.info(f"PS数据采集器初始化完成，数据目录: {self.data_dir}")
 
     def get_current_hour_range(self) -> tuple:
-        """获取当前小时的时间范围（UTC时间）"""
+        """获取上一个小时的时间范围（UTC时间），用于在:01执行时采集上一个小时数据"""
         now = datetime.utcnow()
-        hour_start = now.replace(minute=0, second=0, microsecond=0)
-        hour_end = hour_start + timedelta(hours=1)
+        hour_end = now.replace(minute=0, second=0, microsecond=0)
+        hour_start = hour_end - timedelta(hours=1)
         return hour_start, hour_end
+
+    def compute_hourly_diff(self, current_data: List[Dict[str, Any]], advertiser_id: str, hour_start: datetime) -> List[Dict[str, Any]]:
+        """将累计数据转为小时实际数据（与当天上一小时快照相减）"""
+        if not current_data:
+            return []
+
+        day_start = hour_start.replace(hour=0, minute=0, second=0)
+
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT campaign_id, adgroup_id, creative_id, spend, impressions, clicks,
+                   installs, activates, registers, amount
+            FROM hourly_data
+            WHERE advertiser_id = ? AND hour_start >= ? AND hour_start < ?
+            ORDER BY hour_start DESC
+        ''', (advertiser_id, day_start, hour_start))
+
+        prev_rows = cursor.fetchall()
+        conn.close()
+
+        prev_map = {}
+        for row in prev_rows:
+            key = (row[0], row[1], row[2])
+            if key not in prev_map:
+                prev_map[key] = {
+                    'spend': row[3] or 0,
+                    'impressions': row[4] or 0,
+                    'clicks': row[5] or 0,
+                    'installs': row[6] or 0,
+                    'activates': row[7] or 0,
+                    'registers': row[8] or 0,
+                    'amount': row[9] or 0
+                }
+
+        result = []
+        for item in current_data:
+            key = (item.get('campaign_id'), item.get('adgroup_id'), item.get('creative_id'))
+            prev = prev_map.get(key)
+
+            diff_item = dict(item)
+            if prev:
+                diff_item['spend'] = max(0, round(item.get('spend', 0) - prev['spend'], 4))
+                diff_item['impressions'] = max(0, item.get('impressions', 0) - prev['impressions'])
+                diff_item['clicks'] = max(0, item.get('clicks', 0) - prev['clicks'])
+                diff_item['installs'] = max(0, item.get('installs', 0) - prev['installs'])
+                diff_item['activates'] = max(0, item.get('activates', 0) - prev['activates'])
+                diff_item['registers'] = max(0, item.get('registers', 0) - prev['registers'])
+                diff_item['amount'] = max(0, round(item.get('amount', 0) - prev['amount'], 4))
+
+            imp = diff_item.get('impressions', 0)
+            clk = diff_item.get('clicks', 0)
+            spd = diff_item.get('spend', 0)
+            reg = diff_item.get('registers', 0)
+            inst = diff_item.get('installs', 0)
+            act = diff_item.get('activates', 0)
+
+            diff_item['ctr'] = round(clk / imp * 100, 2) if imp > 0 else 0
+            diff_item['ecpm'] = round(spd / imp * 1000, 4) if imp > 0 else 0
+            diff_item['install_rate'] = round(inst / imp * 100, 2) if imp > 0 else 0
+            diff_item['cpi'] = round(spd / inst, 4) if inst > 0 else 0
+            diff_item['activate_cvr'] = round(act / imp * 100, 2) if imp > 0 else 0
+            diff_item['activate_cpa'] = round(spd / act, 4) if act > 0 else 0
+            diff_item['register_cvr'] = round(reg / imp * 100, 2) if imp > 0 else 0
+            diff_item['register_cpa'] = round(spd / reg, 4) if reg > 0 else 0
+            diff_item['cpc'] = round(spd / clk, 4) if clk > 0 else 0
+            diff_item['roi'] = round(diff_item.get('amount', 0) / spd, 2) if spd > 0 else 0
+
+            result.append(diff_item)
+
+        return result
 
     def _get_auth_token(self) -> str:
         """登录并获取 JWT Token"""
@@ -113,6 +184,8 @@ class PSDataCollector:
             else:
                 data = self.fetch_real_data(advertiser_id, advertiser_name, hour_start)
                 logger.info(f"使用真实采集模式: {advertiser_name}")
+                # 将累计数据转为小时实际数据
+                data = self.compute_hourly_diff(data, advertiser_id, hour_start)
 
             # 保存到数据库
             success = self.save_hourly_data(data, advertiser_id, advertiser_name, hour_start, hour_end)
@@ -137,22 +210,23 @@ class PSDataCollector:
             self.log_collection(advertiser_id, 'failed', 0, str(e), start_time, end_time, duration)
             return False
 
-    def fetch_real_data(self, advertiser_id: str, advertiser_name: str, hour_start: datetime) -> List[Dict[str, Any]]:
+    def fetch_real_data(self, advertiser_id: str, advertiser_name: str, hour_start: datetime, date_str: str = None) -> List[Dict[str, Any]]:
         """
         从真实PS系统 (dsp.nexbids.com) 获取数据
         系统返回的是当日累计数据，我们按当前小时存储为快照
+        date_str: 可选，指定查询日期（用于回填历史数据）
         """
         import requests
 
         ps_url = self.config.get("ps_system_url", "https://dsp.nexbids.com")
         token = self._get_auth_token()
 
-        today_str = datetime.utcnow().strftime("%Y-%m-%d")
+        query_date = date_str or datetime.utcnow().strftime("%Y-%m-%d")
         report_url = (
             f"{ps_url}/api/report/operation/list"
             f"?pageNo=1&pageSize=100"
             f"&advertiserId={advertiser_id}"
-            f"&startDate={today_str}&endDate={today_str}"
+            f"&startDate={query_date}&endDate={query_date}"
             f"&viewType=2"
         )
 
@@ -248,10 +322,10 @@ class PSDataCollector:
                     spend = round(random.uniform(10.0, 100.0), 4)
                     impressions = random.randint(1000, 10000)
                     clicks = random.randint(10, 200)
-                    ctr = round(clicks / impressions * 100, 2) if impressions > 0 else 0
+                    ctr = round(clicks / impressions, 4) if impressions > 0 else 0
                     registers = random.randint(0, 20)
                     amount = round(random.uniform(50.0, 500.0), 2)
-                    roi = round((amount - spend) / spend * 100, 2) if spend > 0 else 0
+                    roi = round(amount / spend, 2) if spend > 0 else 0
 
                     data.append({
                         "advertiser_id": advertiser_id,
@@ -553,7 +627,7 @@ class PSDataCollector:
                     "total_activates": summary_df["total_activates"].sum(),
                     "total_installs": summary_df["total_installs"].sum(),
                     "avg_register_cpa": summary_df["total_spend"].sum() / summary_df["total_registers"].sum() if summary_df["total_registers"].sum() > 0 else 0,
-                    "total_roi": ((summary_df["total_amount"].sum() - summary_df["total_spend"].sum()) / summary_df["total_spend"].sum() * 100) if summary_df["total_spend"].sum() > 0 else 0
+                    "total_roi": (summary_df["total_amount"].sum() / summary_df["total_spend"].sum()) if summary_df["total_spend"].sum() > 0 else 0
                 }
             }
 
@@ -563,12 +637,46 @@ class PSDataCollector:
             logger.error(f"生成周报失败: {e}")
             return {}
 
+    def backfill_daily_data(self, start_date: str, end_date: str) -> Dict[str, Any]:
+        """回填指定日期范围的历史数据（每天存储一份当日累计快照于23:00）"""
+        from datetime import datetime as dt
+
+        results = {"success": 0, "failed": 0, "dates": []}
+        current = dt.strptime(start_date, "%Y-%m-%d")
+        end = dt.strptime(end_date, "%Y-%m-%d")
+
+        while current <= end:
+            date_str = current.strftime("%Y-%m-%d")
+            hour_start = current.replace(hour=23, minute=0, second=0)
+            hour_end = hour_start + timedelta(hours=1)
+
+            for advertiser in self.config.get("advertisers", []):
+                if not advertiser.get("active", True):
+                    continue
+                adv_id = advertiser["id"]
+                adv_name = advertiser["name"]
+                try:
+                    data = self.fetch_real_data(adv_id, adv_name, hour_start, date_str=date_str)
+                    if data:
+                        self.save_hourly_data(data, adv_id, adv_name, hour_start, hour_end)
+                        results["success"] += 1
+                    else:
+                        results["failed"] += 1
+                except Exception as e:
+                    logger.error(f"回填失败 {adv_name} {date_str}: {e}")
+                    results["failed"] += 1
+
+            results["dates"].append(date_str)
+            logger.info(f"回填完成: {date_str}")
+            current += timedelta(days=1)
+
+        return results
+
     def start_scheduled_collection(self) -> None:
         """启动定时采集任务"""
         logger.info("启动定时采集任务")
 
-        interval = self.config.get("collection_interval_hours", 1)
-        schedule.every(interval).hours.at(":00").do(self.collect_all_advertisers)
+        schedule.every().hour.at(":01").do(self.collect_all_advertisers)
 
         self.collect_all_advertisers()
 
