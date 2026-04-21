@@ -261,6 +261,61 @@ async def get_advertisers():
         raise HTTPException(status_code=500, detail="获取数据失败")
 
 
+@app.get("/api/advertisers/summary")
+async def get_advertisers_summary():
+    """获取今日各广告主汇总指标（花费、CTR、amount、ROI）"""
+    try:
+        conn = data_manager.get_connection()
+        today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        today_end = today_start + timedelta(days=1)
+
+        query = '''
+            SELECT
+                advertiser_id,
+                advertiser_name,
+                SUM(spend) as total_spend,
+                SUM(impressions) as total_impressions,
+                SUM(clicks) as total_clicks,
+                SUM(amount) as total_amount
+            FROM hourly_data
+            WHERE hour_start >= ? AND hour_start < ?
+            GROUP BY advertiser_id
+            ORDER BY advertiser_name
+        '''
+
+        df = pd.read_sql_query(query, conn, params=(today_start, today_end))
+        conn.close()
+
+        advertisers = []
+        for _, row in df.iterrows():
+            spend = float(row["total_spend"] or 0)
+            impressions = int(row["total_impressions"] or 0)
+            clicks = int(row["total_clicks"] or 0)
+            amount = float(row["total_amount"] or 0)
+            ctr = round(clicks / impressions, 4) if impressions > 0 else 0
+            roi = round(amount / spend, 2) if spend > 0 else 0
+            advertisers.append({
+                "advertiser_id": row["advertiser_id"],
+                "advertiser_name": row["advertiser_name"],
+                "spend": spend,
+                "impressions": impressions,
+                "clicks": clicks,
+                "ctr": ctr,
+                "amount": amount,
+                "roi": roi
+            })
+
+        return {
+            "date": today_start.strftime("%Y-%m-%d"),
+            "count": len(advertisers),
+            "advertisers": advertisers
+        }
+
+    except Exception as e:
+        logger.error(f"获取广告主汇总失败: {e}")
+        raise HTTPException(status_code=500, detail="获取数据失败")
+
+
 @app.get("/api/advertisers/daily")
 async def get_advertisers_daily(
     days: int = Query(30, description="天数", ge=1, le=90)
