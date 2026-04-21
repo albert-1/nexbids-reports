@@ -66,7 +66,7 @@ class PSDataCollector:
         return hour_start, hour_end
 
     def compute_hourly_diff(self, current_data: List[Dict[str, Any]], advertiser_id: str, hour_start: datetime) -> List[Dict[str, Any]]:
-        """将累计数据转为小时实际数据（与当天上一小时快照相减）"""
+        """将累计数据转为小时实际数据（与当天截止到上一小时的累计总和相减）"""
         if not current_data:
             return []
 
@@ -74,12 +74,19 @@ class PSDataCollector:
 
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
+        # 累加当天截止到当前小时之前的所有已存增量，得到真实的累计快照
         cursor.execute('''
-            SELECT campaign_id, adgroup_id, creative_id, spend, impressions, clicks,
-                   installs, activates, registers, amount
+            SELECT campaign_id, adgroup_id, creative_id,
+                   SUM(spend) as total_spend,
+                   SUM(impressions) as total_impressions,
+                   SUM(clicks) as total_clicks,
+                   SUM(installs) as total_installs,
+                   SUM(activates) as total_activates,
+                   SUM(registers) as total_registers,
+                   SUM(amount) as total_amount
             FROM hourly_data
             WHERE advertiser_id = ? AND hour_start >= ? AND hour_start < ?
-            ORDER BY hour_start DESC
+            GROUP BY campaign_id, adgroup_id, creative_id
         ''', (advertiser_id, day_start, hour_start))
 
         prev_rows = cursor.fetchall()
@@ -88,16 +95,15 @@ class PSDataCollector:
         prev_map = {}
         for row in prev_rows:
             key = (row[0], row[1], row[2])
-            if key not in prev_map:
-                prev_map[key] = {
-                    'spend': row[3] or 0,
-                    'impressions': row[4] or 0,
-                    'clicks': row[5] or 0,
-                    'installs': row[6] or 0,
-                    'activates': row[7] or 0,
-                    'registers': row[8] or 0,
-                    'amount': row[9] or 0
-                }
+            prev_map[key] = {
+                'spend': row[3] or 0,
+                'impressions': row[4] or 0,
+                'clicks': row[5] or 0,
+                'installs': row[6] or 0,
+                'activates': row[7] or 0,
+                'registers': row[8] or 0,
+                'amount': row[9] or 0
+            }
 
         result = []
         for item in current_data:
@@ -638,10 +644,11 @@ class PSDataCollector:
             return {}
 
     def backfill_daily_data(self, start_date: str, end_date: str) -> Dict[str, Any]:
-        """回填指定日期范围的历史数据（每天存储一份当日累计快照于23:00）"""
+        """回填指定日期范围的历史数据（每天存储一份当日累计快照于23:00）
+        若当天已存在小时级数据则跳过，避免与定时采集的小时增量叠加导致重复统计。"""
         from datetime import datetime as dt
 
-        results = {"success": 0, "failed": 0, "dates": []}
+        results = {"success": 0, "failed": 0, "skipped": 0, "dates": []}
         current = dt.strptime(start_date, "%Y-%m-%d")
         end = dt.strptime(end_date, "%Y-%m-%d")
 
@@ -649,6 +656,8 @@ class PSDataCollector:
             date_str = current.strftime("%Y-%m-%d")
             hour_start = current.replace(hour=23, minute=0, second=0)
             hour_end = hour_start + timedelta(hours=1)
+            day_start = current.replace(hour=0, minute=0, second=0)
+            day_end = day_start + timedelta(days=1)
 
             for advertiser in self.config.get("advertisers", []):
                 if not advertiser.get("active", True):
@@ -656,6 +665,21 @@ class PSDataCollector:
                 adv_id = advertiser["id"]
                 adv_name = advertiser["name"]
                 try:
+                    # 检查当天是否已有小时级数据，有则跳过避免重复
+                    conn = sqlite3.connect(self.db_path)
+                    cursor = conn.cursor()
+                    cursor.execute('''
+                        SELECT COUNT(*) FROM hourly_data
+                        WHERE advertiser_id = ? AND hour_start >= ? AND hour_start < ?
+                    ''', (adv_id, day_start, day_end))
+                    existing_count = cursor.fetchone()[0]
+                    conn.close()
+
+                    if existing_count > 0:
+                        logger.info(f"跳过回填 {adv_name} {date_str}，已存在 {existing_count} 条小时数据")
+                        results["skipped"] += 1
+                        continue
+
                     data = self.fetch_real_data(adv_id, adv_name, hour_start, date_str=date_str)
                     if data:
                         self.save_hourly_data(data, adv_id, adv_name, hour_start, hour_end)
