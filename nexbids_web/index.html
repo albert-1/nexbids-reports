@@ -622,7 +622,7 @@
         let creativeChartInstance = null;
         let weeklyTrendChartInstance = null;
 
-        const API_BASE = 'http://localhost:8090';
+        const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:8090' : 'https://icy-garlics-make.loca.lt';
 
         // 初始化页面
         document.addEventListener('DOMContentLoaded', function() {
@@ -753,7 +753,7 @@
             tableBody.innerHTML = '';
 
             if (!data || data.length === 0) {
-                tableBody.innerHTML = '<tr><td colspan="17" class="text-center">暂无数据</td></tr>';
+                tableBody.innerHTML = '<tr><td colspan="18" class="text-center">暂无数据</td></tr>';
                 return;
             }
 
@@ -796,19 +796,24 @@
             if (spendConversionChartInstance) spendConversionChartInstance.destroy();
             if (creativeChartInstance) creativeChartInstance.destroy();
 
-            // 准备24小时数据（缺失小时补0）
+            // 准备24小时数据（按小时聚合，缺失小时补0）
             const hourMap = {};
             hourlyData.forEach(item => {
-                hourMap[item.hour] = item;
+                const h = item.hour;
+                if (!hourMap[h]) {
+                    hourMap[h] = { spend: 0, clicks: 0 };
+                }
+                hourMap[h].spend += (item.spend || 0);
+                hourMap[h].clicks += (item.clicks || 0);
             });
             const hours = [];
             const spends = [];
             const clicks = [];
             for (let h = 0; h < 24; h++) {
                 hours.push(String(h).padStart(2, '0') + ':00');
-                const item = hourMap[h];
-                spends.push(item ? (item.spend || 0) : 0);
-                clicks.push(item ? (item.clicks || 0) : 0);
+                const agg = hourMap[h];
+                spends.push(agg ? agg.spend : 0);
+                clicks.push(agg ? agg.clicks : 0);
             }
 
             // 创意花费分布数据聚合

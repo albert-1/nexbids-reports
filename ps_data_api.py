@@ -865,10 +865,11 @@ async def get_weekly_current(
 ):
     """获取本周/指定周数据，并附带上周环比对比"""
     today = datetime.utcnow()
-    days_since_monday = today.weekday()
+    # 统计周期：上周六到本周五（非自然周）
+    days_since_saturday = (today.weekday() + 2) % 7
 
     # 计算目标周
-    current_week_start = today - timedelta(days=days_since_monday + week_offset * 7)
+    current_week_start = today - timedelta(days=days_since_saturday + week_offset * 7)
     current_week_start = current_week_start.replace(hour=0, minute=0, second=0, microsecond=0)
     current_week_end = current_week_start + timedelta(days=7)
 
