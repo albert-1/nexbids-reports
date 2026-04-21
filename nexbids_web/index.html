@@ -275,20 +275,6 @@
                     <div class="stat-card" style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);">
                         <div class="d-flex justify-content-between align-items-start">
                             <div>
-                                <div class="stat-value" id="total-clicks">0</div>
-                                <div class="stat-label">总点击量 (Clicks)</div>
-                            </div>
-                            <i class="bi bi-mouse" style="font-size: 2rem; opacity: 0.7;"></i>
-                        </div>
-                        <div class="mt-3">
-                            <small><span id="click-change" class="text-success">+0%</span> 较昨日</small>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-lg-3 col-md-6 mb-4">
-                    <div class="stat-card" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div>
                                 <div class="stat-value" id="avg-ctr">0%</div>
                                 <div class="stat-label">点击率 (CTR)</div>
                             </div>
@@ -296,6 +282,20 @@
                         </div>
                         <div class="mt-3">
                             <small><span id="ctr-change" class="text-success">+0%</span> 较昨日</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-6 mb-4">
+                    <div class="stat-card" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <div class="stat-value" id="total-amount">$0</div>
+                                <div class="stat-label">Amount</div>
+                            </div>
+                            <i class="bi bi-cash-stack" style="font-size: 2rem; opacity: 0.7;"></i>
+                        </div>
+                        <div class="mt-3">
+                            <small><span id="amount-change" class="text-success">+0%</span> 较昨日</small>
                         </div>
                     </div>
                 </div>
@@ -365,21 +365,24 @@
                                             <th>广告主ID</th>
                                             <th>广告主</th>
                                             <th>CampaignID</th>
+                                            <th>Campaign</th>
                                             <th>AdGroupID</th>
+                                            <th>AdGroup</th>
                                             <th>CreativeID</th>
+                                            <th>Creative</th>
                                             <th>花费($)</th>
                                             <th>展示量</th>
                                             <th>点击量</th>
                                             <th>CTR(%)</th>
+                                            <th>Amount</th>
                                             <th>注册数</th>
                                             <th>激活数</th>
                                             <th>安装数</th>
                                             <th>ROI</th>
-                                            <th>CPC($)</th>
                                         </tr>
                                     </thead>
                                     <tbody id="hourly-data-table">
-                                        <tr><td colspan="15" class="text-center">加载中...</td></tr>
+                                        <tr><td colspan="18" class="text-center">加载中...</td></tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -437,6 +440,7 @@
                                     <th>展示量</th>
                                     <th>点击量</th>
                                     <th>CTR(%)</th>
+                                    <th>Amount</th>
                                     <th>eCPM($)</th>
                                     <th>注册数</th>
                                     <th>激活数</th>
@@ -482,8 +486,8 @@
                 <div class="card-body">
                     <div class="row">
                         <div class="col-md-3 mb-3"><div class="stat-card"><div class="stat-value" id="week-total-spend">$0</div><div class="stat-label">总花费</div><div class="mt-2" id="week-spend-change"><small>--</small></div></div></div>
-                        <div class="col-md-3 mb-3"><div class="stat-card" style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);"><div class="stat-value" id="week-total-clicks">0</div><div class="stat-label">总点击</div><div class="mt-2" id="week-clicks-change"><small>--</small></div></div></div>
-                        <div class="col-md-3 mb-3"><div class="stat-card" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);"><div class="stat-value" id="week-avg-ctr">0%</div><div class="stat-label">CTR</div><div class="mt-2" id="week-ctr-change"><small>--</small></div></div></div>
+                        <div class="col-md-3 mb-3"><div class="stat-card" style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);"><div class="stat-value" id="week-avg-ctr">0%</div><div class="stat-label">CTR</div><div class="mt-2" id="week-ctr-change"><small>--</small></div></div></div>
+                        <div class="col-md-3 mb-3"><div class="stat-card" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);"><div class="stat-value" id="week-total-amount">$0</div><div class="stat-label">Amount</div><div class="mt-2" id="week-amount-change"><small>--</small></div></div></div>
                         <div class="col-md-3 mb-3"><div class="stat-card" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);"><div class="stat-value" id="week-total-roi">0</div><div class="stat-label">ROI</div><div class="mt-2" id="week-roi-change"><small>--</small></div></div></div>
                     </div>
                 </div>
@@ -498,8 +502,8 @@
                 <div class="card-body">
                     <div class="row">
                         <div class="col-md-3 mb-3"><div class="card border border-2"><div class="card-body py-2 px-3 text-center"><div class="fw-bold text-muted" id="last-week-spend">$0</div><div class="small text-muted">总花费</div></div></div></div>
-                        <div class="col-md-3 mb-3"><div class="card border border-2"><div class="card-body py-2 px-3 text-center"><div class="fw-bold text-muted" id="last-week-clicks">0</div><div class="small text-muted">总点击</div></div></div></div>
                         <div class="col-md-3 mb-3"><div class="card border border-2"><div class="card-body py-2 px-3 text-center"><div class="fw-bold text-muted" id="last-week-ctr">0%</div><div class="small text-muted">CTR</div></div></div></div>
+                        <div class="col-md-3 mb-3"><div class="card border border-2"><div class="card-body py-2 px-3 text-center"><div class="fw-bold text-muted" id="last-week-amount">$0</div><div class="small text-muted">Amount</div></div></div></div>
                         <div class="col-md-3 mb-3"><div class="card border border-2"><div class="card-body py-2 px-3 text-center"><div class="fw-bold text-muted" id="last-week-roi">0</div><div class="small text-muted">ROI</div></div></div></div>
                     </div>
                 </div>
@@ -517,21 +521,23 @@
 
         <!-- 广告主分析页面 -->
         <div id="advertisers-section" class="section-content">
-            <div class="card">
-                <div class="card-header">广告主列表</div>
+            <div class="card mb-4">
+                <div class="card-header">广告主每日花费 / Amount / ROI</div>
                 <div class="card-body">
                     <div class="table-responsive">
                         <table class="table table-hover data-table">
                             <thead>
                                 <tr>
-                                    <th>ID</th>
-                                    <th>名称</th>
-                                    <th>状态</th>
-                                    <th>最后采集时间</th>
+                                    <th>日期</th>
+                                    <th>广告主ID</th>
+                                    <th>广告主</th>
+                                    <th>花费($)</th>
+                                    <th>Amount</th>
+                                    <th>ROI</th>
                                 </tr>
                             </thead>
                             <tbody id="advertisers-table">
-                                <tr><td colspan="4" class="text-center">加载中...</td></tr>
+                                <tr><td colspan="6" class="text-center">加载中...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -715,13 +721,13 @@
                 const summaryData = await summaryResponse.json();
 
                 const totalSpendEl = document.getElementById('total-spend');
-                const totalClicksEl = document.getElementById('total-clicks');
                 const avgCtrEl = document.getElementById('avg-ctr');
+                const totalAmountEl = document.getElementById('total-amount');
                 const avgRoiEl = document.getElementById('avg-roi');
 
                 if (totalSpendEl) totalSpendEl.textContent = `$${(summaryData.total_spend || 0).toFixed(4)}`;
-                if (totalClicksEl) totalClicksEl.textContent = (summaryData.total_clicks || 0).toLocaleString();
                 if (avgCtrEl) avgCtrEl.textContent = `${((summaryData.avg_ctr || 0) * 100).toFixed(2)}%`;
+                if (totalAmountEl) totalAmountEl.textContent = `$${(summaryData.total_amount || 0).toFixed(4)}`;
                 if (avgRoiEl) avgRoiEl.textContent = (summaryData.avg_roi || 0).toFixed(2);
 
                 const hourlyResponse = await fetch(`${API_BASE}/api/hourly/today`);
@@ -743,28 +749,34 @@
             tableBody.innerHTML = '';
 
             if (!data || data.length === 0) {
-                tableBody.innerHTML = '<tr><td colspan="15" class="text-center">暂无数据</td></tr>';
+                tableBody.innerHTML = '<tr><td colspan="17" class="text-center">暂无数据</td></tr>';
                 return;
             }
 
-            data.forEach(item => {
+            // 按小时倒序排列
+            const sortedData = [...data].sort((a, b) => (b.hour || 0) - (a.hour || 0));
+
+            sortedData.forEach(item => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>${String(item.hour).padStart(2, '0')}:00</td>
                     <td><code>${item.advertiser_id || '--'}</code></td>
                     <td>${item.advertiser_name || '--'}</td>
                     <td><code>${item.campaign_id || '--'}</code></td>
+                    <td>${item.campaign_name || '--'}</td>
                     <td><code>${item.adgroup_id || '--'}</code></td>
+                    <td>${item.adgroup_name || '--'}</td>
                     <td><code>${item.creative_id || '--'}</code></td>
+                    <td>${item.creative_name || '--'}</td>
                     <td>$${(item.spend || 0).toFixed(4)}</td>
                     <td>${(item.impressions || 0).toLocaleString()}</td>
                     <td>${(item.clicks || 0).toLocaleString()}</td>
                     <td>${(item.impressions || 0) > 0 ? ((item.clicks || 0) / item.impressions * 100).toFixed(2) : '0.00'}%</td>
+                    <td>${(item.amount || 0).toFixed(2)}</td>
                     <td>${item.registers || 0}</td>
                     <td>${item.activates || 0}</td>
                     <td>${item.installs || 0}</td>
                     <td>${(item.roi || 0).toFixed(2)}</td>
-                    <td>$${(item.register_cpa || 0).toFixed(4)}</td>
                 `;
                 tableBody.appendChild(row);
             });
@@ -874,8 +886,8 @@
         // 加载模拟数据
         function loadMockData() {
             document.getElementById('total-spend').textContent = '$0.00';
-            document.getElementById('total-clicks').textContent = '0';
             document.getElementById('avg-ctr').textContent = '0%';
+            document.getElementById('total-amount').textContent = '$0';
             document.getElementById('avg-roi').textContent = '0';
 
             const mockData = [];
@@ -883,6 +895,9 @@
                 mockData.push({
                     hour: i,
                     advertiser_name: ['NexBids', 'AdvertiserX', 'ClientY'][i % 3],
+                    campaign_name: 'Campaign-' + (i % 3 + 1),
+                    adgroup_name: 'AdGroup-' + (i % 3 + 1),
+                    creative_name: 'Creative-' + (i % 3 + 1),
                     spend: Math.random() * 5 + 0.5,
                     impressions: Math.floor(Math.random() * 5000) + 500,
                     clicks: Math.floor(Math.random() * 50) + 1,
@@ -890,7 +905,8 @@
                     registers: Math.floor(Math.random() * 3),
                     activates: Math.floor(Math.random() * 3),
                     installs: Math.floor(Math.random() * 2),
-                    roi: Math.random() * 10 - 5,
+                    amount: Math.random() * 10,
+                    roi: Math.random() * 2,
                     register_cpa: Math.random() * 2 + 0.1
                 });
             }
@@ -898,7 +914,7 @@
             updateHourlyTable(mockData);
             updateCharts(mockData, {
                 total_spend: 0,
-                total_clicks: 0,
+                total_amount: 0,
                 avg_ctr: 0,
                 avg_roi: 0
             });
@@ -1125,6 +1141,7 @@
                         <td>${(item.impressions || 0).toLocaleString()}</td>
                         <td>${(item.clicks || 0).toLocaleString()}</td>
                         <td>${(item.impressions || 0) > 0 ? ((item.clicks || 0) / item.impressions * 100).toFixed(2) : '0.00'}%</td>
+                        <td>${(item.amount || 0).toFixed(2)}</td>
                         <td>$${(item.ecpm || 0).toFixed(4)}</td>
                         <td>${item.registers || 0}</td>
                         <td>${item.activates || 0}</td>
@@ -1177,21 +1194,21 @@
                 // 当前周指标
                 const c = current.summary;
                 document.getElementById('week-total-spend').textContent = `$${(c.spend || 0).toFixed(4)}`;
-                document.getElementById('week-total-clicks').textContent = (c.clicks || 0).toLocaleString();
                 document.getElementById('week-avg-ctr').textContent = `${((c.ctr || 0) * 100).toFixed(2)}%`;
+                document.getElementById('week-total-amount').textContent = `$${(c.amount || 0).toFixed(2)}`;
                 document.getElementById('week-total-roi').textContent = `${(c.roi || 0).toFixed(2)}`;
 
                 // 环比变化标签
                 updateChangeLabel('week-spend-change', comp.spend_change);
-                updateChangeLabel('week-clicks-change', comp.clicks_change);
                 updateChangeLabel('week-ctr-change', comp.ctr_change);
+                updateChangeLabel('week-amount-change', comp.amount_change);
                 updateChangeLabel('week-roi-change', comp.roi_change);
 
                 // 上周指标
                 const l = last.summary;
                 document.getElementById('last-week-spend').textContent = `$${(l.spend || 0).toFixed(4)}`;
-                document.getElementById('last-week-clicks').textContent = (l.clicks || 0).toLocaleString();
                 document.getElementById('last-week-ctr').textContent = `${((l.ctr || 0) * 100).toFixed(2)}%`;
+                document.getElementById('last-week-amount').textContent = `$${(l.amount || 0).toFixed(2)}`;
                 document.getElementById('last-week-roi').textContent = `${(l.roi || 0).toFixed(2)}`;
 
                 // 趋势图
@@ -1242,25 +1259,27 @@
         // 加载广告主数据
         async function loadAdvertisersData() {
             try {
-                const response = await fetch(`${API_BASE}/api/advertisers`);
+                const response = await fetch(`${API_BASE}/api/advertisers/daily?days=30`);
                 const result = await response.json();
 
                 const tableBody = document.getElementById('advertisers-table');
                 if (!tableBody) return;
                 tableBody.innerHTML = '';
 
-                if (!result.advertisers || result.advertisers.length === 0) {
-                    tableBody.innerHTML = '<tr><td colspan="4" class="text-center">暂无广告主数据</td></tr>';
+                if (!result.data || result.data.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="6" class="text-center">暂无广告主数据</td></tr>';
                     return;
                 }
 
-                result.advertisers.forEach(adv => {
+                result.data.forEach(item => {
                     const row = document.createElement('tr');
                     row.innerHTML = `
-                        <td>${adv.id}</td>
-                        <td>${adv.name}</td>
-                        <td><span class="badge ${adv.status === 'active' ? 'bg-success' : 'bg-secondary'}">${adv.status || 'unknown'}</span></td>
-                        <td>${adv.last_collected || '未采集'}</td>
+                        <td>${item.date}</td>
+                        <td><code>${item.advertiser_id || '--'}</code></td>
+                        <td>${item.advertiser_name || '--'}</td>
+                        <td>$${(item.spend || 0).toFixed(4)}</td>
+                        <td>$${(item.amount || 0).toFixed(2)}</td>
+                        <td>${(item.roi || 0).toFixed(2)}</td>
                     `;
                     tableBody.appendChild(row);
                 });

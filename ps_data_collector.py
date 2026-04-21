@@ -368,7 +368,7 @@ class PSDataCollector:
 
             for item in data:
                 cursor.execute('''
-                    INSERT OR REPLACE INTO hourly_data
+                    INSERT OR IGNORE INTO hourly_data
                     (advertiser_id, advertiser_name, campaign_id, campaign_name,
                      adgroup_id, adgroup_name, creative_id, creative_name,
                      goal, spend, impressions, clicks, ctr, ecpm,

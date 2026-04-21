@@ -261,6 +261,58 @@ async def get_advertisers():
         raise HTTPException(status_code=500, detail="获取数据失败")
 
 
+@app.get("/api/advertisers/daily")
+async def get_advertisers_daily(
+    days: int = Query(30, description="天数", ge=1, le=90)
+):
+    """获取每个广告主每日的花费、amount和ROI"""
+    try:
+        conn = data_manager.get_connection()
+        end_date = datetime.utcnow()
+        start_date = end_date - timedelta(days=days)
+
+        query = '''
+            SELECT
+                DATE(hour_start) as date,
+                advertiser_id,
+                advertiser_name,
+                SUM(spend) as daily_spend,
+                SUM(amount) as daily_amount,
+                CASE
+                    WHEN SUM(spend) > 0 THEN ROUND(SUM(amount) / SUM(spend), 2)
+                    ELSE 0
+                END as daily_roi
+            FROM hourly_data
+            WHERE hour_start >= ? AND hour_start <= ?
+            GROUP BY DATE(hour_start), advertiser_id
+            ORDER BY date DESC, advertiser_name
+        '''
+
+        df = pd.read_sql_query(query, conn, params=(start_date, end_date))
+        conn.close()
+
+        records = []
+        for _, row in df.iterrows():
+            records.append({
+                "date": row["date"],
+                "advertiser_id": row["advertiser_id"],
+                "advertiser_name": row["advertiser_name"],
+                "spend": float(row["daily_spend"]),
+                "amount": float(row["daily_amount"]),
+                "roi": float(row["daily_roi"])
+            })
+
+        return {
+            "days": days,
+            "count": len(records),
+            "data": records
+        }
+
+    except Exception as e:
+        logger.error(f"获取广告主每日数据失败: {e}")
+        raise HTTPException(status_code=500, detail="获取数据失败")
+
+
 @app.get("/api/hourly-data")
 async def get_hourly_data(
     start_time: Optional[str] = Query(None, description="开始时间 (YYYY-MM-DD HH:MM:SS)"),
@@ -424,7 +476,7 @@ async def get_hourly_today():
                 SUM(installs) as installs,
                 SUM(amount) as amount,
                 CASE WHEN SUM(registers) > 0 THEN ROUND(SUM(spend) / SUM(registers), 2) ELSE 0 END as register_cpa,
-                CASE WHEN SUM(spend) > 0 THEN ROUND(SUM(amount) * 100.0 / SUM(spend), 2) ELSE 0 END as roi
+                CASE WHEN SUM(spend) > 0 THEN ROUND(SUM(amount) / SUM(spend), 2) ELSE 0 END as roi
             FROM hourly_data
             WHERE hour_start >= ? AND hour_start < ?
             GROUP BY strftime('%H', hour_start), advertiser_id, campaign_id, adgroup_id, creative_id
@@ -477,11 +529,6 @@ async def get_summary_today():
         cursor = conn.cursor()
 
         cursor.execute('''
-            WITH latest_hour AS (
-                SELECT MAX(hour_start) as max_hour
-                FROM hourly_data
-                WHERE hour_start >= ? AND hour_start < ?
-            )
             SELECT
                 SUM(spend),
                 SUM(registers),
@@ -491,7 +538,7 @@ async def get_summary_today():
                 SUM(impressions),
                 SUM(amount)
             FROM hourly_data
-            WHERE hour_start = (SELECT max_hour FROM latest_hour)
+            WHERE hour_start >= ? AND hour_start < ?
         ''', (today_start, today_end))
 
         row = cursor.fetchone()
