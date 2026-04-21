@@ -8,9 +8,6 @@ uvicorn[standard]==0.24.0
 pandas==2.2.0
 numpy==1.26.0
 
-# 数据库
-sqlite3  # Python标准库
-
 # 定时任务
 schedule==1.2.0
 

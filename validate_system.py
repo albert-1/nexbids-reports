@@ -8,7 +8,28 @@ import requests
 import json
 import sys
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
+from pathlib import Path
+
+# 项目根目录
+PROJECT_ROOT = Path(__file__).parent.resolve()
+CONFIG_PATH = PROJECT_ROOT / "ps_system_config.json"
+
+API_PORT = 8090
+WEB_PORT = 8081
+
+
+def load_config():
+    """加载配置获取端口"""
+    global API_PORT, WEB_PORT
+    try:
+        with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
+            config = json.load(f)
+        API_PORT = config.get("api_port", 8090)
+        WEB_PORT = config.get("web_port", 8081)
+    except Exception:
+        pass  # 使用默认端口
+
 
 def test_api_endpoint(url, name, method='GET', data=None):
     """测试API端点"""
@@ -18,7 +39,7 @@ def test_api_endpoint(url, name, method='GET', data=None):
             response = requests.get(url, timeout=10)
         elif method == 'POST':
             response = requests.post(url, json=data, timeout=10)
-        
+
         if response.status_code == 200:
             print(f"✓ 成功 (状态码: {response.status_code})")
             try:
@@ -31,6 +52,7 @@ def test_api_endpoint(url, name, method='GET', data=None):
     except Exception as e:
         print(f"✗ 错误: {e}")
         return None
+
 
 def test_web_page(url, name):
     """测试网页访问"""
@@ -47,19 +69,24 @@ def test_web_page(url, name):
         print(f"✗ 错误: {e}")
         return False
 
+
 def test_data_collection():
     """测试数据收集功能"""
     print("\n=== 数据收集功能测试 ===")
-    
+
     # 测试配置文件
     print("测试配置文件...", end=" ")
     try:
-        with open('/home/workspace/ps_system_config.json', 'r', encoding='utf-8') as f:
+        if not CONFIG_PATH.exists():
+            print(f"✗ 配置文件不存在: {CONFIG_PATH}")
+            return False
+
+        with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
             config = json.load(f)
-        
-        required_fields = ['ps_system_url', 'username', 'password', 'data_collection_method']
+
+        required_fields = ['ps_system_url', 'advertisers', 'metrics']
         missing_fields = [field for field in required_fields if field not in config]
-        
+
         if missing_fields:
             print(f"✗ 缺少字段: {missing_fields}")
             return False
@@ -70,67 +97,75 @@ def test_data_collection():
         print(f"✗ 错误: {e}")
         return False
 
+
 def test_api_integration():
     """测试API集成"""
     print("\n=== API集成测试 ===")
-    
-    # 测试基础API端点
-    base_url = "http://localhost:8090"
-    
+
+    base_url = f"http://localhost:{API_PORT}"
+
     tests = [
         ("健康检查", f"{base_url}/api/health"),
+        ("根路径", f"{base_url}/"),
         ("广告主列表", f"{base_url}/api/advertisers"),
         ("小时数据", f"{base_url}/api/hourly-data"),
         ("每日汇总", f"{base_url}/api/daily-summary"),
+        ("今日汇总", f"{base_url}/api/summary/today"),
+        ("今日小时", f"{base_url}/api/hourly/today"),
+        ("本周周报", f"{base_url}/api/weekly/current"),
+        ("历史数据", f"{base_url}/api/historical-data?metric=spend&group_by=day&days=7"),
+        ("实时指标", f"{base_url}/api/real-time-metrics"),
     ]
-    
+
     all_passed = True
     for name, url in tests:
         result = test_api_endpoint(url, name)
         if result is None:
             all_passed = False
-    
+
     return all_passed
+
 
 def test_web_interface():
     """测试Web界面"""
     print("\n=== Web界面测试 ===")
-    
-    base_url = "http://localhost:8081"
-    
+
+    base_url = f"http://localhost:{WEB_PORT}"
+
     tests = [
         ("主页面", f"{base_url}/"),
         ("API代理", f"{base_url}/api/health"),
         ("静态资源", f"{base_url}/index.html"),
     ]
-    
+
     all_passed = True
     for name, url in tests:
         if not test_web_page(url, name):
             all_passed = False
-    
+
     return all_passed
+
 
 def test_data_quality():
     """测试数据质量"""
     print("\n=== 数据质量测试 ===")
-    
+
     try:
         # 获取小时数据
-        response = requests.get("http://localhost:8090/api/hourly-data", timeout=10)
+        response = requests.get(f"http://localhost:{API_PORT}/api/hourly-data", timeout=10)
         if response.status_code == 200:
             data = response.json()
-            
+
             if isinstance(data, dict) and 'data' in data:
                 hourly_data = data['data']
                 print(f"✓ 获取到 {len(hourly_data)} 条小时数据")
-                
+
                 # 检查数据字段
                 if len(hourly_data) > 0:
                     sample = hourly_data[0]
                     expected_fields = ['hour_start', 'spend', 'impressions', 'clicks', 'registers']
                     missing_fields = [field for field in expected_fields if field not in sample]
-                    
+
                     if missing_fields:
                         print(f"✗ 数据缺少字段: {missing_fields}")
                         return False
@@ -150,10 +185,11 @@ def test_data_quality():
         print(f"✗ 错误: {e}")
         return False
 
+
 def test_system_requirements():
     """测试系统需求满足情况"""
     print("\n=== 系统需求验证 ===")
-    
+
     requirements = [
         ("每小时数据采集", True, "API支持小时级数据查询"),
         ("多广告主查询", True, "API支持广告主筛选"),
@@ -162,30 +198,34 @@ def test_system_requirements():
         ("网页展示", True, "Web服务器正常运行"),
         ("数据导出", True, "界面包含导出功能"),
     ]
-    
+
     all_met = True
     for req, met, note in requirements:
         status = "✓" if met else "✗"
         print(f"{status} {req}: {note}")
         if not met:
             all_met = False
-    
+
     return all_met
+
 
 def main():
     """主验证函数"""
+    load_config()
+
     print("=" * 60)
     print("    NexBids数据监控系统 - 功能验证")
     print("=" * 60)
     print(f"验证时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"API端口: {API_PORT}, Web端口: {WEB_PORT}")
     print()
-    
+
     # 检查服务是否运行
     print("=== 服务状态检查 ===")
-    
+
     try:
         # 检查API服务
-        api_response = requests.get("http://localhost:8090/api/health", timeout=5)
+        api_response = requests.get(f"http://localhost:{API_PORT}/api/health", timeout=5)
         if api_response.status_code == 200:
             print("✓ API服务: 运行正常")
         else:
@@ -193,11 +233,12 @@ def main():
             return False
     except:
         print("✗ API服务: 未启动")
+        print("提示: 请先运行 ./start_nexbids_system.sh 启动服务")
         return False
-    
+
     try:
         # 检查Web服务
-        web_response = requests.get("http://localhost:8080", timeout=5)
+        web_response = requests.get(f"http://localhost:{WEB_PORT}", timeout=5)
         if web_response.status_code == 200:
             print("✓ Web服务: 运行正常")
         else:
@@ -205,8 +246,9 @@ def main():
             return False
     except:
         print("✗ Web服务: 未启动")
+        print("提示: 请先运行 ./start_nexbids_system.sh 启动服务")
         return False
-    
+
     # 执行各项测试
     tests = [
         ("数据收集", test_data_collection),
@@ -215,18 +257,18 @@ def main():
         ("数据质量", test_data_quality),
         ("系统需求", test_system_requirements),
     ]
-    
+
     results = []
     for test_name, test_func in tests:
         print(f"\n执行测试: {test_name}")
         result = test_func()
         results.append((test_name, result))
-    
+
     # 输出总结
     print("\n" + "=" * 60)
     print("验证结果总结:")
     print("=" * 60)
-    
+
     passed_count = 0
     for test_name, result in results:
         status = "通过" if result else "失败"
@@ -234,16 +276,17 @@ def main():
         print(f"{symbol} {test_name}: {status}")
         if result:
             passed_count += 1
-    
+
     total_tests = len(results)
     print(f"\n通过率: {passed_count}/{total_tests} ({passed_count/total_tests*100:.1f}%)")
-    
+
     if passed_count == total_tests:
         print("\n🎉 所有测试通过！系统功能完整。")
         return True
     else:
         print(f"\n⚠️  {total_tests - passed_count} 个测试失败，请检查相关功能。")
         return False
+
 
 if __name__ == "__main__":
     success = main()

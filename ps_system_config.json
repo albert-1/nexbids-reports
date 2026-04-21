@@ -7,9 +7,10 @@
   "advertiser_switch_delay": 2,
   "max_retries": 3,
   "timezone": "UTC",
-  "web_port": 8090,
+  "web_port": 8081,
+  "api_port": 8090,
   "debug_mode": false,
-  "data_collection_method": "web_scraping",
+  "data_collection_method": "api",
   "advertisers": [
     {
       "id": "10001",
