@@ -1,0 +1,59 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+logs/
+api_service.log
+web_service.log
+ps_system_log.log
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+temp/
+
+# Data files
+*.csv
+*.xlsx
+*.xls
+
+# Configuration files with sensitive data
+*_config.json
+*_secrets.json
+*_credentials.json
+
+# Generated files
+report_screenshot.png
+browser_state.json
+
+# Artifacts
+artifacts/
+output/
+reports/
+summaries/
+weekly_reports/

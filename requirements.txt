@@ -1,0 +1,24 @@
+# NexBids数据监控系统依赖包
+
+# Web框架
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+
+# 数据处理
+pandas==2.2.0
+numpy==1.26.0
+
+# 数据库
+sqlite3  # Python标准库
+
+# 定时任务
+schedule==1.2.0
+
+# HTTP请求
+requests==2.31.0
+
+# 数据验证
+pydantic==2.5.0
+
+# 日志
+python-json-logger==2.0.7

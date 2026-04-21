@@ -1,0 +1,44 @@
+{
+  "ps_system_url": "https://dsp.nexbids.com",
+  "username": "admin@qq.com",
+  "password": "a123456",
+  "data_retention_days": 30,
+  "collection_interval_hours": 1,
+  "advertiser_switch_delay": 2,
+  "max_retries": 3,
+  "timezone": "UTC",
+  "web_port": 8090,
+  "debug_mode": false,
+  "data_collection_method": "web_scraping",
+  "advertisers": [
+    {
+      "id": "10001",
+      "name": "zeydoo",
+      "active": true
+    },
+    {
+      "id": "10002",
+      "name": "Zeydoo",
+      "active": true
+    }
+  ],
+  "metrics": [
+    "spend",
+    "impressions",
+    "clicks",
+    "ctr",
+    "registers",
+    "register_cpa",
+    "amount",
+    "roi"
+  ],
+  "report_config": {
+    "hourly_metrics": ["spend", "impressions", "clicks", "registers"],
+    "weekly_metrics": ["total_spend", "total_registers", "avg_register_cpa", "total_roi"],
+    "chart_types": {
+      "hourly_trend": "line",
+      "spend_vs_registers": "scatter",
+      "performance_comparison": "bar"
+    }
+  }
+}
